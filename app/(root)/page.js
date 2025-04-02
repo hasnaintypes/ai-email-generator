@@ -1,6 +1,7 @@
 import Hero from "./_components/hero";
 import Features from "./_components/features";
 import CTA from "./_components/cta";
+import Footer from "@/components/shared/footer";
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
         <Features />
         <CTA />
       </main>
+      <Footer />
     </div>
   );
 }

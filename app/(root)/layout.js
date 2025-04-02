@@ -12,10 +12,6 @@ const Layout = ({ children }) => {
         <Navbar />
       </div>
       {children}
-
-      <div className="container mx-auto px-4">
-        <Footer />
-      </div>
     </div>
   );
 };
