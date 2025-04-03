@@ -54,7 +54,7 @@ import { generateHtmlFromElements } from "@/lib/html-generator";
 
 import { Suspense } from "react";
 
-export default function EditorPage() {
+export default function Editor() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const emailId = searchParams.get("id");
@@ -287,7 +287,6 @@ export default function EditorPage() {
   }
 
   return (
-    <Suspense fallback={<div>Loading...</div>}>
       <div className="flex flex-col h-screen bg-muted/30">
         {/* Header */}
         <header className="border-b bg-background p-4 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -622,6 +621,14 @@ export default function EditorPage() {
           </SheetContent>
         </Sheet>
       </div>
-    </Suspense>
   );
+}
+
+
+export default function EditorPage() {
+ return (
+    <Suspense>
+      <Editor />
+    </Suspense>
+  )
 }
