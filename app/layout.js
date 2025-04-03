@@ -3,6 +3,7 @@ import "./globals.css";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { ConvexClientProvider } from "./ConvexClientProvider";
+import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -24,6 +25,7 @@ export default function RootLayout({ children }) {
           {/* Center Main Content */}
           <div className="container mx-auto px-4">
             <ConvexClientProvider>{children}</ConvexClientProvider>
+            <Toaster />
           </div>
         </ThemeProvider>
       </body>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,7 +26,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Eye,
   MoreVertical,
   Pencil,
   Plus,
@@ -40,20 +39,51 @@ import {
 import { format } from "date-fns";
 import EmptyState from "./empty-state";
 import Link from "next/link";
+import { api } from "@/convex/_generated/api";
+import { toast } from "sonner";
 
-export default function EmailList({ emails, user }) {
+export default function EmailList({ emails, user, convex }) {
   const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'list'
   const [searchQuery, setSearchQuery] = useState("");
+  const [filteredEmails, setFilteredEmails] = useState([]);
 
-  const filteredEmails = emails.filter(
-    (email) =>
-      email.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Update filtered emails when search query or emails change
+  useEffect(() => {
+    if (!emails) {
+      setFilteredEmails([]);
+      return;
+    }
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
+    setFilteredEmails(
+      emails.filter(
+        (email) =>
+          email.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          email.subject.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    );
+  }, [emails, searchQuery]);
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return "N/A";
+    const date = new Date(timestamp);
     return format(date, "MMM d, yyyy");
+  };
+
+  const handleDeleteEmail = async (id, name) => {
+    if (confirm(`Are you sure you want to delete "${name}"?`)) {
+      try {
+        console.log(`Deleting email template: ${id}`);
+        await convex.mutation(api.emails.deleteEmail, { id });
+
+        // Update the local state to remove the deleted email
+        setFilteredEmails(filteredEmails.filter((email) => email._id !== id));
+
+        toast.success(`"${name}" has been deleted successfully.`);
+      } catch (error) {
+        console.error("Error deleting email:", error);
+        toast.error("Failed to delete email template.");
+      }
+    }
   };
 
   return (
@@ -105,7 +135,12 @@ export default function EmailList({ emails, user }) {
         viewMode === "grid" ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredEmails.map((email) => (
-              <EmailCard key={email.id} email={email} formatDate={formatDate} />
+              <EmailCard
+                key={email._id}
+                email={email}
+                formatDate={formatDate}
+                onDelete={() => handleDeleteEmail(email._id, email.name)}
+              />
             ))}
           </div>
         ) : (
@@ -128,7 +163,7 @@ export default function EmailList({ emails, user }) {
               </TableHeader>
               <TableBody>
                 {filteredEmails.map((email) => (
-                  <TableRow key={email.id}>
+                  <TableRow key={email._id}>
                     <TableCell>
                       <div className="font-medium">{email.name}</div>
                       <div className="text-xs text-muted-foreground md:hidden">
@@ -150,22 +185,20 @@ export default function EmailList({ emails, user }) {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 hover:text-primary hover:bg-primary/10"
+                          asChild
                         >
-                          <Eye className="h-4 w-4" />
-                          <span className="sr-only">View</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 hover:text-primary hover:bg-primary/10"
-                        >
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
+                          <Link href={`/dashboard/editor?id=${email._id}`}>
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </Link>
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          onClick={() =>
+                            handleDeleteEmail(email._id, email.name)
+                          }
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete</span>
@@ -187,15 +220,16 @@ export default function EmailList({ emails, user }) {
   );
 }
 
-function EmailCard({ email, formatDate }) {
+function EmailCard({ email, formatDate, onDelete }) {
   return (
-    <Card className="overflow-hidden h-full flex flex-col">
+    <Card className="overflow-hidden h-full flex flex-col transition-all duration-200 hover:shadow-md hover:border-primary/20 group">
       <CardHeader className="pb-3 relative">
+        <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-primary/40 via-primary to-primary/40 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <CardTitle className="line-clamp-1">{email.name}</CardTitle>
             <CardDescription className="line-clamp-2">
-              {email.description}
+              {email.subject}
             </CardDescription>
           </div>
           <DropdownMenu>
@@ -206,15 +240,13 @@ function EmailCard({ email, formatDate }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <Eye className="mr-2 h-4 w-4" />
-                View
+              <DropdownMenuItem asChild>
+                <Link href={`/dashboard/editor?id=${email._id}`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem onClick={onDelete} className="text-destructive">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </DropdownMenuItem>
@@ -234,6 +266,11 @@ function EmailCard({ email, formatDate }) {
             <FileText className="mr-1 h-4 w-4" />
             <span>Created: {formatDate(email.createdAt)}</span>
           </div>
+          {email.tone && (
+            <div className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
+              Tone: {email.tone.charAt(0).toUpperCase() + email.tone.slice(1)}
+            </div>
+          )}
         </div>
       </CardContent>
       <CardFooter className="border-t bg-muted/30 px-6 py-3 mt-auto">
@@ -246,17 +283,12 @@ function EmailCard({ email, formatDate }) {
               variant="ghost"
               size="icon"
               className="h-8 w-8 hover:text-primary hover:bg-primary/10"
+              asChild
             >
-              <Eye className="h-4 w-4" />
-              <span className="sr-only">View</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 hover:text-primary hover:bg-primary/10"
-            >
-              <Pencil className="h-4 w-4" />
-              <span className="sr-only">Edit</span>
+              <Link href={`/dashboard/editor?id=${email._id}`}>
+                <Pencil className="h-4 w-4" />
+                <span className="sr-only">Edit</span>
+              </Link>
             </Button>
           </div>
         </div>
